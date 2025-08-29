@@ -506,7 +506,7 @@ def imshift_batch(img, shifts, grid):
         shifts (torch.Tensor): The shifts to be applied to the image. It should be a (Nb,2) tensor and each slice as (shift_y, shift_x).
         grid (torch.Tensor): The k-space grid used for computing the shifts in the Fourier domain. It should be a tensor with shape=(2, Ny, Nx),
                              where Ny and Nx are the height and width of the images, respectively. Note that the grid is normalized so the value spans
-                             from 0 to 1
+                             from [-0.5,0.5)
 
     Returns:
         shifted_img (torch.Tensor): The batch of shifted images. It has an extra dimension than the input image, i.e., shape=(Nb, ..., Ny, Nx),
@@ -529,10 +529,7 @@ def imshift_batch(img, shifts, grid):
     shift_y, shift_x = shifts[:, 0], shifts[:, 1]                                     # shift_y, shift_x are (Nb,1,1,...) with ndim singletons, so the shift_y.ndim = ndim+1
     ky, kx = grid[0], grid[1]                                                         # ky, kx are (1,1,...,Ny,Nx) with ndim-2 singletons, so the ky.ndim = ndim+1
     phase = -2*torch.pi * (shift_x * kx + shift_y * ky)
-    w = torch_phasor(phase)                                                           # w = (Nb, 1,1,...,Ny,Nx) so w.ndim = ndim+1. w is at the center.
-    shifted_img = ifft2(ifftshift2(fftshift2(fft2(img)) * w))                         # For real-valued input, take shifted_img.real
-    
-    # Note that for imshift, it's better to keep fft2(img) than fft2(ifftshift2(img))
-    # While fft2(img).angle() might seem serrated, it's indeed better to keep it as is, which is essentially setting the center as the origin for FFT.
+    w = torch_phasor(phase)                                                           # w = (Nb, 1,1,...,Ny,Nx) so w.ndim = ndim+1. The zero frequency term of w is at the corner.
+    shifted_img = ifft2(fft2(img) * w)                                                # For real-valued input, take shifted_img.real
     
     return shifted_img

@@ -158,19 +158,18 @@ class PtychoAD(torch.nn.Module):
         return torch.view_as_complex(self.opt_probe)
         
     def create_grids(self):
-        """ Create the grid for obj_ROI and shift_probes in a vectorized approach """
-        # Note that the Noy, Nox, roy, rox, shift_object_grid are pre-generated for potential future usage of sub-px object shifts
-        # Currently (2024.04.24) only the shift_probes_grid, rpy_grid, rpx_grid are used for sub-px shifts and obj_ROI selection
-        # 2024.11.18 added propagator_grid and propagator_tilt_grid for Fresnel propagator (optimizable slice thickness and tilts)
-        # 2025.07.07 removed propagator_tilt_grid and settled with the half-bin shift approach for numerical stability with sqrt ASM method
+        """ Create the grids for shifting probes, selecting obj ROI, and Fresnel propagator in a vectorized approach """
+        # Note that the shift_object_grid is pre-generated for potential future usage of sub-px object shifts
         
         device = self.device
         probe = self.get_complex_probe_view()
         Npy, Npx = probe.shape[-2:] # Number of probe pixels in y and x directions
-        Noy, Nox = self.opt_objp.shape[-2:] # Number of object pixels in y and x directions, 
+        Noy, Nox = self.opt_objp.shape[-2:] # Number of object pixels in y and x directions
         
        # Grids for Fresnel propagator
-       # Note that this grid has a half-bin shift that avoids exact 0 frequency which would generate NaNs inside sqrt.
+       # Note that this grid has a half-bin shift that avoids exact Nyquist frequency (k = -0.5) which would generate NaNs inside sqrt.
+       # Due to the half-bin shift, the 0th element is also not exactly 0.
+       # If we decided to go with the small angle approximated propagator, then we may unify this grid with the reciprocal probe gird.
         ygrid = (torch.arange(-Npy // 2, Npy // 2, device=device) + 0.5) / Npy
         xgrid = (torch.arange(-Npx // 2, Npx // 2, device=device) + 0.5) / Npx
         ky = torch.fft.ifftshift(2 * torch.pi * ygrid / self.dx) # Use ifftshift to shift the 0 frequency to the corner
@@ -178,19 +177,20 @@ class PtychoAD(torch.nn.Module):
         Ky, Kx = torch.meshgrid(ky, kx, indexing="ij")
         self.propagator_grid = torch.stack([Ky,Kx], dim=0) # (2,Ky,Kx), k-space grid for Fresnel propagator with 2pi absorbed
         
-        # Grids for shifting probes and obj_ROI selection
+        # Grids for obj_ROI selection
         rpy, rpx = torch.meshgrid(torch.arange(Npy, dtype=torch.int32, device=device), 
                                   torch.arange(Npx, dtype=torch.int32, device=device), indexing='ij') # real space grid for probe in y and x directions
-        roy, rox = torch.meshgrid(torch.arange(Noy, dtype=torch.int32, device=device), 
-                                  torch.arange(Nox, dtype=torch.int32, device=device), indexing='ij') # real space grid for object in y and x directions
-        
-        self.shift_probes_grid = torch.stack([rpy/Npy, rpx/Npx], dim=0) # (2,Npy,Npx), normalized k-space grid stack for sub-px probe shifting 
-        self.shift_object_grid = torch.stack([roy/Noy, rox/Nox], dim=0) # (2,Noy,Nox), normalized k-space grid stack for sub-px object shifting (Implemented for completeness, not used in PtyRAD)
-        
         self.rpy_grid = rpy # real space grid with y-indices spans across probe extent
         self.rpx_grid = rpx
-        self.roy_grid = roy # real space grid with y-indices spans across object extent
-        self.rox_grid = rox
+        
+        # Grids for shifting probes and objects
+        # This is the typical fftfreq grid that ranges from [-0.5, 0.5) and the 0th element is exactly 0
+        kpy, kpx = torch.meshgrid(torch.fft.fftfreq(Npy, dtype=torch.float32, device=device),
+                                  torch.fft.fftfreq(Npx, dtype=torch.float32, device=device), indexing='ij')
+        koy, kox = torch.meshgrid(torch.fft.fftfreq(Noy, dtype=torch.float32, device=device),
+                                  torch.fft.fftfreq(Nox, dtype=torch.float32, device=device), indexing='ij')
+        self.shift_probes_grid = torch.stack([kpy, kpx], dim=0) # (2,Npy,Npx), normalized k-space grid stack for sub-px probe shifting 
+        self.shift_object_grid = torch.stack([koy, kox], dim=0) # (2,Noy,Nox), normalized k-space grid stack for sub-px object shifting (Implemented for completeness, not used in PtyRAD)
     
     def create_optimizable_params_dict(self, lr_params, verbose=True):
         """ Sets the optimizer with lr_params """
