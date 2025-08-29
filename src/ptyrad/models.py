@@ -313,8 +313,9 @@ class PtychoAD(torch.nn.Module):
         
     def get_probes(self, indices):
         """ Get probes for each position """
+        # This function will return a probe tensor with (N, pmode, Ny, Nx)
         # If you're not trying to optimize probe positions, there's not much point using sub-px shifted stationary probes
-        # This function will return a single probe when self.shift_probes = False,
+        # So the function would broadcast the same probe across the batch dimension,
         # and would only be returning multiple sub-px shifted probes if you're optimizing self.opt_probe_pos_shifts
 
         probe = self.get_complex_probe_view()
@@ -322,7 +323,7 @@ class PtychoAD(torch.nn.Module):
         if self.shift_probes:
             probes = imshift_batch(probe, shifts = self.opt_probe_pos_shifts[indices], grid = self.shift_probes_grid)
         else:
-            probes = torch.broadcast_to(probe, (len(indices), *probe.shape)) # Broadcast a batch dimension, essentially using same probe for all samples
+            probes = torch.broadcast_to(probe, (indices.shape[0], *probe.shape)) # Broadcast a batch dimension, essentially using same probe for all samples
         return probes
     
     def get_propagators(self, indices):

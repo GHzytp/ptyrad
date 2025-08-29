@@ -572,7 +572,7 @@ def save_results(output_path, model, params, optimizer, niter, indices, batch_lo
         save_dict_to_hdf5(save_dict, safe_filename(os.path.join(output_path, f"model{collate_str}{iter_str}.hdf5")))
     probe      = model.get_complex_probe_view() 
     probe_amp  = probe.reshape(-1, probe.size(-1)).t().abs().detach().cpu().numpy()
-    probe_prop = model.get_propagated_probe([0]).permute(0,2,1,3) # (Z, pmode, Y, X) -> (Z, Y, pmode, X)
+    probe_prop = model.get_propagated_probe(np.array([0])).permute(0,2,1,3) # (Z, pmode, Y, X) -> (Z, Y, pmode, X). # Use np.array([0]) instead of [0] for indices is more consistent with types and safer with torch.compile
     shape      = probe_prop.shape
     prop_p_amp = probe_prop.reshape(shape[0], shape[1], shape[2]*shape[3]).abs().detach().cpu().numpy()
     objp       = model.opt_objp.detach().cpu().numpy()
