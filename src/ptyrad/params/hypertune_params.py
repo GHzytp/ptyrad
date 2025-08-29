@@ -208,10 +208,10 @@ class HypertuneParams(BaseModel):
     See https://optuna.readthedocs.io/en/stable/reference/samplers/index.html for more details.
     """
     
-    pruner_params: PrunerParams = Field(default_factory=PrunerParams, description="Pruner configuration for early termination")
+    pruner_params: Optional[PrunerParams] = Field(default_factory=PrunerParams, description="Pruner configuration for early termination")
     """
     Pruning is early termination of unpromising trials to save computation budget. 
-    Set to False to disable pruning (i.e., no early termination). 
+    Set to `'pruner_params': null` to disable pruning (i.e., no early termination).
     The recommended prunner is HyperbandPruner, see Optuna document for more details
     """
     
