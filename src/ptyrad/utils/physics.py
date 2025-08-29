@@ -116,7 +116,7 @@ def get_EM_constants(acceleration_voltage, output_type):
     elif output_type == 'sigma':
         return sigma
     else:
-        KeyError(f"output_type '{output_type}' not implemented yet, please use 'gamma', 'wavelength', or 'sigma'!")
+        raise ValueError(f"output_type '{output_type}' not implemented yet, please use 'gamma', 'wavelength', or 'sigma'!")
 
 def complex_object_interp3d(complex_object, zoom_factors, z_axis, use_np_or_cp='np'):
     """
