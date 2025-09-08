@@ -1342,7 +1342,7 @@ class Initializer:
         
         probe = self._probe_permute(probe, self.init_params.get('probe_permute'))
         probe = self._probe_set_pmode_max(probe, pmode_max, pmode_init_pows, orthogonalize=True, sort=True)
-        probe = self._probe_add_df(probe, self.init_params.get('probe_add_df'))
+        probe = self._probe_z_shift(probe, self.init_params.get('probe_z_shift'))
         probe = self._probe_normalize(probe, self.init_params.get('probe_normalize'))
         return probe
 
@@ -1395,14 +1395,14 @@ class Initializer:
             
         return probe_final
     
-    def _probe_add_df(self, probe, df):
+    def _probe_z_shift(self, probe, prop_distance):
         """
-        Adding user-specified defocus to the initialized probe. This is used for shifting the reconstructed probe along depth.
+        Applying user-specified additional axial propagation to the initialized probe. This is used for shifting the reconstructed probe along depth.
         
-        Note that df is the same convention with PtychoShelves/fold_slice and abTEM with the Kirkland convention, where positive defocus is underfocus.
+        Note that prop_distance is defined with propagation direction, so positive value means forward propagation (i.e., increasing depth/z).
         """
         
-        if df is None or df == 0:
+        if prop_distance is None or prop_distance == 0:
             return probe
 
         else:
@@ -1410,8 +1410,8 @@ class Initializer:
             lambd = self.init_variables['lambd']
             unit_str = self.init_variables['length_unit']
             
-            vprint(f"Adding additional probe defocus = {df} {unit_str}. Positive value means underfocus.", verbose=self.verbose)
-            H = near_field_evolution(probe.shape[-2:], dx, df, lambd)
+            vprint(f"Applying additional axial propagation (z) = {prop_distance} {unit_str} to the probe. Positive value means forward propagation (i.e., increasing depth/z).", verbose=self.verbose)
+            H = near_field_evolution(probe.shape[-2:], dx, prop_distance, lambd)
             probe_shifted = np.fft.ifft2(H[None,] * np.fft.fft2(probe))
             return probe_shifted
     

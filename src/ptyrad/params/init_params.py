@@ -486,14 +486,17 @@ class InitParams(BaseModel):
     The syntax is the same as np.transpose()
     """
 
-    probe_add_df: Optional[float] = Field(default=None, description="Additional defocus for probe")
+    probe_z_shift: Optional[float] = Field(default=None, description="Axially (z) shift the initialized probe")
     """
     type: null or float. 
     unit: Ang for electron and m for x-ray. 
-    This applies additional defocus to the initialized probe. 
-    The sign convention is the same as 'probe_defocus', 
-    where positive defocus here refers to actual underfocus or weaker lens strength following Kirkland/abtem/ptychoshelves convention. 
-    This is used to shift the probe focus vertically along the object depth dimension in accordance with the object z-recentering.
+    This shifts the initialized probe axially along the depth (z) dimension. 
+    The sign convention follows the propagation direction, 
+    so positive value means to propagate the probe further into the object (i.e., forward direction), 
+    and negative value refers to rewind the probe backward. 
+    This is used to shift the probe focus vertically along the object depth dimension in accordance with the object z-recentering (i.e., obj_z_crop, obj_z_pad). 
+    For example, if you pad the reconstructed object with additional 50 Ang vacuum layer ON TOP via 'obj_z_pad', 
+    you'll want to apply a 'probe_z_shift: -50' Ang to the originally reconstructed probe so the relative geometry of probe and object is conserved. 
     """
     
     pos_scan_flipT: Optional[List[int]] = Field(default=None, description="Flip and transpose for scan patterns")
@@ -536,10 +539,10 @@ class InitParams(BaseModel):
     'pad_types' is a list of 2 strings that specifies whether we are padding vacuum layers, mean layers, or edge layers. 
     The available options are 'vacuum', 'mean', and 'edge'. 
     This is useful for expanding reconstructed object to test object positioning or total thickness. 
-    Note that one should also adjust the 'probe_add_df' (loaded probe) or 'probe_defocus' (simulated probe) accordingly, 
+    Note that one should also adjust the 'probe_z_shift' (loaded probe) or 'probe_defocus' (simulated probe) accordingly, 
     because padding object on the top surface will effectively change the entrance plane of the probe. 
-    For example, if one padded 10 nm of vacuum on the top surface, 
-    one should also add a 10 nm underfocus to maintain the relative position of probe and object.
+    For example, if one padded 10 nm of vacuum on the top surface, one should also add a 10 nm underfocus (for simulated probe via 'probe_defocus'), 
+    or apply a z-shift of -10 nm to the loaded probe via 'probe_z_shift' to maintain the relative position of probe and object.
     """
 
     obj_z_resample: Optional[ObjZResample] = Field(default=None, description="Resampling object along depth dimension")
