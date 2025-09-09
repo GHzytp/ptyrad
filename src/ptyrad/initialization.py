@@ -76,13 +76,18 @@ class Initializer:
         vprint("### Initializing cache ###", verbose=self.verbose)
         
         # Initialize flags for cached fields
+        self.cache_source = None
+        self.cache_path = None
+        self.cache_contents = None
         self.use_cached_obj = False
         self.use_cached_probe = False
         self.use_cached_pos = False
         
+        # Set cache_source, cache_path, and use_cached_xxx flags iteratively
         for source in ['PtyRAD', 'PtyShv', 'py4DSTEM']:
             self._set_use_cached_flags(source)
             
+        # Set cache_contents
         if any([self.use_cached_obj, self.use_cached_probe, self.use_cached_pos]):
             if self.cache_source == 'PtyRAD':
                 vprint(f"Loading 'PtyRAD' file from {self.cache_path} for caching", verbose=self.verbose)
@@ -95,6 +100,8 @@ class Initializer:
                 self.cache_contents = load_hdf5(self.cache_path, key=None)
             else:
                 raise ValueError(f"File type {source} not implemented for caching yet, please use 'PtyRAD', or 'PtyShv'!")
+            
+        # Cache is only used when 2 out of 3 fields have the same source and path, so the following flags could only be all false, 1 false 2 true, or 3 true.
         vprint(f"use_cached_obj   = {self.use_cached_obj}", verbose=self.verbose)
         vprint(f"use_cached_probe = {self.use_cached_probe}", verbose=self.verbose)
         vprint(f"use_cached_pos   = {self.use_cached_pos}", verbose=self.verbose)
@@ -648,16 +655,19 @@ class Initializer:
             self.use_cached_obj = self.use_cached_probe = True
             self.cache_path = obj_params
             self.cache_source = obj_source
+            return
 
         if same_source_and_params(triplets[0], triplets[2]):
             self.use_cached_obj = self.use_cached_pos = True
             self.cache_path = obj_params
             self.cache_source = obj_source
+            return
 
         if same_source_and_params(triplets[1], triplets[2]):
             self.use_cached_probe = self.use_cached_pos = True
             self.cache_path = probe_params
             self.cache_source = probe_source
+            return
 
     ###### Private methods for initializing measurements ######
     
@@ -1505,7 +1515,7 @@ class Initializer:
     
     def _load_pos_from_py4dstem(self, params: str):
         hdf5_path       = params
-        hdf5_contents   = self.cache_contents if self.use_cached_pos else load_hdf5(hdf5_path, key='positions_px')
+        hdf5_contents   = self.cache_contents if self.use_cached_pos else load_hdf5(hdf5_path)
         probe_positions = hdf5_contents['positions_px']
         probe_shape     = hdf5_contents['probe'].shape[-2:] # py4DSTEM probe is (pmode,Ny,Nx)
         pos             = probe_positions - np.array(probe_shape)/2 
