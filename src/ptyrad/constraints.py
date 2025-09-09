@@ -271,6 +271,25 @@ class CombinedConstraint(torch.nn.Module):
             relax_str = f'relaxed ({relax}*obj + ({1-relax}*obj_postiv))' if relax != 0 else 'hard'
             vprint(f"Apply {relax_str} positivity constraint on objp with '{mode}' mode at iter {niter}. Original min = {original_min.item():.3f}. objp range becomes ({omin:.3f}, {omax:.3f})", verbose=self.verbose)           
 
+    def apply_pos_recenter(self, model, niter):
+        ''' Apply position recentering constraint on probe positions '''
+        # Here, relax=1 means fully relaxed and essentially no constraint.
+        # Usually we start from reasonable probe and positions, so the object would get reconstructed in place instantly.
+        # This makes object, probe, and probe positions remain relatively aligned so this constraint isn't critically needed.
+        # For certain use cases (i.e., large position learning rates or misplaced object during initialization), the probe positions might accumulate large global offsets.
+        # Then we can use this constraint to remove the global offset, which will soon recenter the object as well given that probe CoM is relatively stable.
+        # TODO: Technically we can shift the object accordingly to accelerate the convergence but it doesn't seem to be critically needed at the moment
+
+        if self._should_apply_at_iter('pos_recenter', niter):
+            relax            = self.constraint_params['pos_recenter']['relax']
+            
+            pos_shifts = model.opt_probe_pos_shifts # float32
+            orig_mean = pos_shifts.mean(0)
+
+            model.opt_probe_pos_shifts.data = pos_shifts - (1 - relax) * orig_mean
+            relax_str = f'relaxed (pos_shifts - ({1-relax:.3f}*original_mean))' if relax != 0 else 'hard'
+            vprint(f"Apply {relax_str} position recentering constraint at iter {niter}. Original mean = {orig_mean.detach().cpu().numpy().round(3)}. probe_pos_shifts.mean(0) becomes {model.opt_probe_pos_shifts.mean(0).detach().cpu().numpy().round(3)}", verbose=self.verbose)
+
     def apply_tilt_smooth(self, model, niter):
         ''' Apply Gaussian blur to object tilts '''
         # Note that the smoothing is applied along the last 2 axes, which are scan dimensions, so the unit of std is "scan positions"
@@ -307,6 +326,8 @@ class CombinedConstraint(torch.nn.Module):
             self.apply_obj_z_recenter(model, niter)
             self.apply_obja_thresh   (model, niter)
             self.apply_objp_postiv   (model, niter)
+            # Position constraints
+            self.apply_pos_recenter  (model, niter)
             # Local tilt constraint
             self.apply_tilt_smooth   (model, niter)
 

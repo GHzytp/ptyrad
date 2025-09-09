@@ -127,6 +127,13 @@ class ObjpPostiv(BaseModel):
     end_iter: Optional[int] = Field(default=None, ge=1, description="End iteration of applying positivity constraint")
     relax: float = Field(default=0.0, ge=0.0, le=1.0, description="Relaxation parameter for positivity")
 
+class PosRecenter(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    start_iter: Optional[int] = Field(default=None, ge=1, description="Start iteration of applying position recentering constraint")
+    step: Optional[int] = Field(default=1, ge=1, description="Interval of iterations of applying position recentering constraint")
+    end_iter: Optional[int] = Field(default=None, ge=1, description="End iteration of applying position recentering constraint")
+    relax: float = Field(default=0.0, ge=0.0, le=1.0, description="Relaxation parameter for position recentering")
 
 class TiltSmooth(BaseModel):
     model_config = {"extra": "forbid"}
@@ -294,6 +301,14 @@ class ConstraintParams(BaseModel):
     it's suggested to keep it on so that you can interpret, compare, and process your object phase with a simple baseline. 
     Besides, the positivity constraint makes it easier to compare with atomic potential ground truth after correct scaling for the scattering factor. 
     The clipping can be relaxed by the `relax` param that is a weighted sum betwen the pre-threshold and post-threshold values.
+    """
+    
+    pos_recenter: PosRecenter = Field(
+        default_factory=PosRecenter, description="Recentering the probe position shifts"
+    )
+    """
+    Recenter the probe position shifts by making mean(probe_pos_shifts) = 0 so there's no global offset from the cropping position. 
+    This would keep the probe, probe position, and object relatively fixed in place even with large position learning rates.
     """
     
     tilt_smooth: TiltSmooth = Field(
