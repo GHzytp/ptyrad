@@ -237,7 +237,7 @@ class CombinedConstraint(torch.nn.Module):
             model.opt_objp.data = torch.angle(objc).contiguous()
             
             # Update model probe
-            H = near_field_evolution_torch(probe.shape[-2:], dx, z_shift*dz, lambd, device=model.device)
+            H = near_field_evolution_torch(probe.shape[-2:], dx, -z_shift*dz, lambd, device=model.device) # If the object is shifted along +z, then the probe should be back-propagated along -z 
             model.opt_probe.data = torch.view_as_real(ifft2(H[None,] * fft2(probe)).contiguous())
             vprint(f"Apply obj z-recenter constraint. Complex object and probe defocus are shifted by {z_shift:.3f} slice ({(z_shift*dz):.3f} {unit_str}) along depth dimension. threshold = {threshold}, scale = {scale}, and max_shift = {max_shift}.", verbose=self.verbose)
     
