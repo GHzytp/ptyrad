@@ -18,6 +18,7 @@ from ptyrad.utils import (
     vprint,
 )
 
+from ptyrad.utils.math_ops import approx_torch_quantile
 
 @torch.compiler.disable # TorchRuntimeError: Dynamo failed to run FX node with fake tensors: call_function <Wrapped method <original sub>>(*(FakeTensor(..., size=(5,), dtype=torch.float64), 2.0), **{}): got AttributeError("'ndarray' object has no attribute 'sub'")
 class CombinedConstraint(torch.nn.Module):
@@ -441,7 +442,7 @@ def get_obj_z_shift(obj_phase, threshold=95, scale=1, max_shift=10):
     
     # Threshold to focus on actual signal
     if threshold is not None:
-        cutoff = torch.quantile(obj_phase, q=threshold/100) # quantile is between [0,1]
+        cutoff = approx_torch_quantile(obj_phase, q=threshold/100) # quantile is between [0,1]
         obj_phase[obj_phase < cutoff] = 0 # Value smaller than cutoff is set to 0
     
     # Collapse omode,y,x → get mean phase per z-slice

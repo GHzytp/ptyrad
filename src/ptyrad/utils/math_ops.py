@@ -142,6 +142,29 @@ def make_gaussian_mask(Npix: int, radius: float, std: float, center: Optional[Tu
 
     return gaussian_mask
 
+def approx_torch_quantile(t, q, sample_size=16_000_000):
+    """
+    Approximated quantile to prevent the 2^24 element (roughly 16.7M) limitation of torch.quantile as of now.
+    See https://github.com/pytorch/pytorch/issues/64947
+    `RuntimeError: quantile() input tensor is too large`
+    Note that this approximated quantile would have some randomness.
+
+    Args:
+        t (torch.Tensor): Input torch tensor
+        q (float): Targeted quantile number [0,1]
+        sample_size (int, optional): Number of randomly selected elements used to approximate the true quantile. Defaults to 16_000_000.
+
+    Returns:
+        float: The approximated quantile value for the input tensor
+    """
+    # flatten
+    flat = t.view(-1)
+    # random subsample if necessary
+    if flat.numel() > sample_size:
+        idx = torch.randint(0, flat.numel(), (sample_size,), device=flat.device)
+        flat = flat[idx]
+    return torch.quantile(flat, q)
+
 # Affine
 def compose_affine_matrix(scale, asymmetry, rotation, shear):
     # Adapted from PtychoShelves +math/compose_affine_matrix.m
