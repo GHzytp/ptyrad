@@ -360,60 +360,91 @@ def plot_slice_thickness(dz_iters, last_n_iters=10, show_fig=True, pass_fig=Fals
     if pass_fig:
         return fig
 
-def plot_probe_modes(init_probe, opt_probe, amp_or_phase='amplitude', real_or_fourier='real', phase_cmap=None, amplitude_cmap=None, show_fig=True, pass_fig=False):
+def plot_probe_modes(init_probe=None, opt_probe=None, amp_or_phase='amplitude', real_or_fourier='real', phase_cmap=None, amplitude_cmap=None, show_fig=True, pass_fig=False):
     # The input probes are expected to be numpy array
     # This is for visualization so each mode has its own colorbar.
     # See the actual probe amplitude output for absolute scale visualizaiton
     
-    # Get the power distribution
-    # Although init_probe_int wouldn't change, calculate it takes < 0.2 ms so realy no need to pre-calculate it
-    init_probe_int = np.abs(init_probe)**2 
-    opt_probe_int = np.abs(opt_probe)**2
-    init_probe_pow = np.sum(init_probe_int, axis=(-2,-1))/np.sum(init_probe_int) 
-    opt_probe_pow = np.sum(opt_probe_int, axis=(-2,-1))/np.sum(opt_probe_int)
+    # Initial checks
+    if init_probe is None and opt_probe is None:
+        raise ValueError("At least one of init_probe or opt_probe must be provided.")
+    if all(p is not None for p in (init_probe, opt_probe)) and init_probe.shape[0] != opt_probe.shape[0]:
+        raise ValueError(f"All provided probes must have the same number of probe modes (axis 0), got {init_probe.shape} and {opt_probe.shape}.")
     
-    if real_or_fourier == 'fourier':
-    # While it might seem redundant, the sandwitch fftshift(fft(ifftshift(probe)))) is needed for the following reason:
-    # Although probe_fourier = fft2(ifftshift(probe)) and probe_fourier = fft2(probe) gives the same abs(probe_fourier),
-    # pre-fftshifting the probe back to corner gives more accurate phase angle while plotting the angle(probe_fourier)
-    # On the other hand, fft2(probe) would generate additional phase shifts that looks like checkerboard artifact in angle(probe_fourier)
-        init_probe = fftshift(fft2(ifftshift(init_probe, axes=(-2,-1)), norm='ortho'), axes=(-2,-1))
-        opt_probe  = fftshift(fft2(ifftshift(opt_probe,  axes=(-2,-1)), norm='ortho'), axes=(-2,-1))
-    elif real_or_fourier =='real':
-        pass
-    else:
-        raise ValueError("Please use 'real' or 'fourier' for probe mode visualization!")
+    # Initialize
+    probes = [init_probe, opt_probe]
+    labels = ["Init pmode", "Opt pmode"]   # row titles
+    processed_probes = []
+    probes_pow = []
+    
+    # Loop through possible input probes
+    for probe in probes:
+        if probe is None:
+            processed_probes.append(None)
+            probes_pow.append(None)
+            continue
         
-    if amp_or_phase == 'phase':
-        # Negative sign for consistency with chi(k), because psi = exp(-i*chi(k)). Overfocus should give positive phase shift near the edge of aperture
-        # Scale the plotted phase by the amplitude so we can focus more on the relevant phases
-        init_probe = -np.angle(init_probe)*np.abs(init_probe) 
-        opt_probe  = -np.angle(opt_probe)*np.abs(opt_probe)
-        cmap = phase_cmap if phase_cmap else 'twilight'
-    elif amp_or_phase == 'amplitude' or amp_or_phase == 'amp':
-        init_probe = np.abs(init_probe)
-        opt_probe  = np.abs(opt_probe)
-        cmap = amplitude_cmap if amplitude_cmap else 'viridis'
-    else:
-        raise ValueError("Please use 'amplitude' or 'phase' for probe mode visualization!")
+        # Power distribution
+        probe_int = np.abs(probe)**2 
+        probe_pow = np.sum(probe_int, axis=(-2,-1))/np.sum(probe_int)
+        probes_pow.append(probe_pow)
     
-    plt.ioff() # Temporaily disable the interactive plotting mode
-    fig, axs = plt.subplots(2, len(opt_probe), figsize=(len(opt_probe)*2.5, 6))
-    axs = axs[:,None] if len(opt_probe) == 1 else axs # Expand axs to (2,1) to handle the special case of 1 probe mode
-    plt.suptitle(f"Probe modes {amp_or_phase} in {real_or_fourier} space", fontsize=18)
-                
-    for i in range(len(opt_probe)):
-        ax_init = axs[0, i]
-        ax_init.set_title(f"Init pmode {i}: {init_probe_pow[i]:.1%}")
-        im_init = ax_init.imshow(init_probe[i], cmap=cmap)
-        ax_init.axis('off')
-        plt.colorbar(im_init, ax=ax_init, shrink=0.6)
+        # Fourier or real
+        # While it might seem redundant, the sandwitch fftshift(fft(ifftshift(probe)))) is needed for the following reason:
+        # Although probe_fourier = fft2(ifftshift(probe)) and probe_fourier = fft2(probe) gives the same abs(probe_fourier),
+        # pre-fftshifting the probe back to corner gives more accurate phase angle while plotting the angle(probe_fourier)
+        # On the other hand, fft2(probe) would generate additional phase shifts that looks like checkerboard artifact in angle(probe_fourier)
+        if real_or_fourier == 'fourier':
+            probe  = fftshift(fft2(ifftshift(probe,  axes=(-2,-1)), norm='ortho'), axes=(-2,-1))
+        elif real_or_fourier =='real':
+            pass
+        else:
+            raise ValueError("Please use 'real' or 'fourier' for probe mode visualization!")
+        
+        # Amplitude or phase
+        # Negative sign for consistency with chi(k), because psi = exp(-i*chi(k)). 
+        # Overfocus (negative df = positive C1) should give positive phase shift near the edge of aperture
+        # Scale the plotted phase by the amplitude so we can focus more on the relevant phases
+        # Although note that noisy amplitude will also make the phase appears noisy
+        if amp_or_phase == 'phase':
+            probe = -np.angle(probe)*np.abs(probe)
+            cmap = phase_cmap if phase_cmap else 'twilight'
+        elif amp_or_phase in ('amplitude', 'amp'):
+            probe = np.abs(probe)
+            cmap = amplitude_cmap if amplitude_cmap else 'viridis'
+        else:
+            raise ValueError("Please use 'amplitude' or 'phase' for probe mode visualization!")
 
-        ax_opt = axs[1, i]
-        ax_opt.set_title(f"Opt pmode {i}: {opt_probe_pow[i]:.1%}")
-        im_opt = ax_opt.imshow(opt_probe[i], cmap=cmap)
-        ax_opt.axis('off')
-        plt.colorbar(im_opt, ax=ax_opt, shrink=0.6)
+        processed_probes.append(probe)
+        
+    # Parse variables
+    non_none = [(label, probe, probe_pow) for label, probe, probe_pow in zip(labels, processed_probes, probes_pow) if probe is not None]
+    n_modes = non_none[0][1].shape[0] # non_none[0][1] would be probe, probe = (pmode, Ny, Nx)
+    rows = len(non_none)
+    
+    # Actual plotting
+    plt.ioff() # Temporaily disable the interactive plotting mode
+    fig, axs = plt.subplots(rows, n_modes, figsize=(n_modes*2.5, rows*3))
+    
+    # Normalize axs shapes
+    axs = np.asarray(axs)
+    if axs.ndim == 0:
+        axs = axs.reshape(1, 1)
+    elif axs.ndim == 1:
+        if rows == 1:
+            axs = axs.reshape(1, n_modes)
+        else:
+            axs = axs.reshape(rows, 1)
+    
+    for row_idx, (label, probe, probe_pow) in enumerate(non_none):
+        for i in range(n_modes):
+            ax = axs[row_idx, i]
+            ax.set_title(f"{label} {i}: {probe_pow[i]:.1%}")
+            im = ax.imshow(probe[i], cmap=cmap)
+            ax.axis('off')
+            fig.colorbar(im, ax=ax, shrink=0.6)
+    
+    plt.suptitle(f"Probe modes {amp_or_phase} in {real_or_fourier} space", fontsize=18)
     plt.tight_layout()
     if show_fig:
         plt.show()
