@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0b12] - 2025-09-30
+### Added
+- Add `pos_recenter` constraint to remove potential global offset from cropping positions. This will help keeping probe, position, and object relatively in place.
+- Add `get_error_distribution.ipynb`, `read_ptyrad_output_hdf5.ipynb`, and `get_local_obj_tilts.ipynb` (issue #15) to `demo/scripts/analysis/`
+### Changed
+- Refactor `plot_probe_modes` so it can take either 1 or 2 input probes for easier visualization
+- Fix incorrect probe shifting direction in `obj_z_recenter` so it can shift the object and probe correctly
+- Explictly assign device for `near_field_evolution_torch` in `obj_z_recneter` constraint so it can correctly work on multi-GPU machines when assigned device != 'cuda'
+- Improve `obj_z_recenter` constraint by approximating `torch.quantile` so it can operate on large tensors with more than 16.7M elements; Add `approx_torch_quantile` to `ptyrad.utils.math_ops`.
+- Fix missing cache initialization in `init_cache` for `init_obj_tilts` as mentioned in issue #24 by @yifengh3
+- Rename `probe_add_df` into `probe_z_shift` for clarity as mentioned in issue #18. Positive value means propagate the probe forward (increasing z depth).
+- Fix a torch.compile edge case in `get_probe`s when position learning rate = 0. len(indices) would be treated incorrectly as a FakeTensor despite it should just be an int from len(np.ndarray).
+- Remove a pair of fftshifts in `imshift_batch` and adjust the k-space grid accordingly in `create_grids`. This improves the forward pass efficiency without affecting the reconstruction.
+- Allow `pruner_params` to be null during pydantic validation as mentioned in issue #20 by @GeriTopore
+
 ## [0.1.0b11] - 2025-08-21
 ### Added
 - Add `obj_z_resample` preprocessing to `init_params` so we can reslice the object along depth dimension to adjust the slice thickness without changing total thickness. This is useful for refining an existing multislice restruction with finer slices as mentioned in issue #5, or to convert between single <-> multislice object

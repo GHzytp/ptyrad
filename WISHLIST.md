@@ -1,7 +1,7 @@
 # New Features and Enhancements
 
 
-Last Update: 2025.08.21
+Last Update: 2025.09.30
 
 ---
 
@@ -91,7 +91,6 @@ Last Update: 2025.08.21
 
 - Refine plotting and saving routines.
     - Plotting with matplotlib feels very slow
-- Plot real and k-space error distributions.
 - Plot radially accumulated intensity for k-space probe
 - Add a `plot_obj_tilts_interp` for interpolated version of tilt_x, tilt_y for cleaner visualization could be nice
 - Plot obj FFT figure, use the FOV region and PS FFT. Maybe to `plot_summary` and `save_results` as well

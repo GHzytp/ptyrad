@@ -67,7 +67,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 ### How do I check if my installed PtyRAD has the GPU support?
 CUDA version, GPU support, and PyTorch build across platforms can be extremely confusing, so *PtyRAD* provides handy CLI tools to help check these information for you!
 
-Once you activated `(ptyrad)` environment and installed *PtyRAD* via `pip insall ptyrad`, you'll have access to the following command:
+Once you activated `(ptyrad)` environment and installed *PtyRAD* via `pip install ptyrad`, you'll have access to the following command:
 
 ```bash
 # You can run this command anywhere from your terminal, as long as `ptyrad` is installed in the environment
@@ -75,6 +75,13 @@ ptyrad check-gpu
 ```
 
 This command will print out relevant information of your CUDA information if available.
+
+### How do I update my existing PtyRAD installation to a newer release?
+Assuming you've activated the `(ptyrad)` environment and you've installed *PtyRAD* via pip, you can simply update your PtyRAD installation with:
+
+```bash
+pip install -U ptyrad
+```
 
 ## Get Started with the Demo
 
